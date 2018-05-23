@@ -75,3 +75,27 @@ mods %<>%
     mod_imp
   })
 
+#### mods summary (n corr-inc words & prop inc words) ####
+length_inlist <- function(x) {
+  # unlist the list of stages and return total number of words across participants
+  x %>%
+    unlist() %>%
+    na.omit() %>%
+    length()
+}
+
+# calculate number of correct and incorrect words, and proportion of incorrect words
+mods_summary <- filenames %>%
+  lapply(function(x) {
+    phon_corr_tokens <- mods[[x]]$phon_corr %>%
+      length_inlist()
+    phon_inc_tokens <- mods[[x]]$phon_inc %>%
+      length_inlist()
+    prop_phon_inc <- round(phon_inc_tokens/(phon_corr_tokens+phon_inc_tokens),2) 
+    
+    tibble(mod = x,
+           phon_corr_tokens,
+           phon_inc_tokens,
+           prop_phon_inc)
+  }) %>%
+  do.call(what = rbind)
