@@ -130,3 +130,35 @@ iphod_check <- function(var, save = F) {
                 col.names = F)
   }
 } # unused
+
+# import plural nouns
+plurals <- "plurals.txt" %>%
+  read_tsv(col_names = F) %>%
+  unlist()
+
+# select only phon_inc_or that is of interest
+mods_iph <- mods %>%
+  lapply(function(x) {
+    x %>%
+      select(baby, section, phon_inc_or) %>%
+      # delete plurals
+      mutate(phon_inc_or = phon_inc_or %>%
+               lapply(function(y) {
+                 y[which(!y %in% plurals)] %>%
+                   sort() %>% # sort so that pp and pn will have the same order
+                   na.omit() # delete NAs to not lose order in pp and pn
+               })) %>%
+      # assign pp and pn variables
+      mutate(phon_inc_or_pp = phon_inc_or %>%
+               sapply(function(y) {
+                 ifelse(length(na.omit(y)) > 0, 
+                        inner_join(tibble(phon = y), online_imp, by = "phon") %>% 
+                          select(nei), NA)
+               }),
+             phon_inc_or_pn = phon_inc_or %>%
+               sapply(function(y) {
+                 ifelse(length(na.omit(y)) > 0, 
+                         inner_join(tibble(phon = y), online_imp, by = "phon") %>% 
+                           select(phon_prob), NA)
+               }))
+  })
