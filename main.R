@@ -32,17 +32,17 @@ mods_raw <- filelist %>%
 #### tidy models ####
 mods <- mods_raw
 
+filter_match <- function(df, match) {
+  x <- df %>%
+    filter(grepl(match, X1)) 
+  x$X1
+}
+
 mods %<>%
   lapply(function(df) {
     mod_imp_raw <- df
     mod_imp_raw %<>%
       filter(grepl("vocab-learnt-this|correct-vocab|original-word", X1))
-    
-    filter_match <- function(match) {
-      x <- mod_imp_raw %>%
-        filter(grepl(match, X1)) 
-      x$X1
-    }
     
     var_names <- c("phon_corr","phon_inc","phon_inc_or",
                    "phon_inc_cum","phon_inc_cum_freq",
@@ -56,7 +56,7 @@ mods %<>%
     mod_imp <- tibble(V1 = rep(NA,240)) # 240 = n(babies)*n(stages)
     for (i in seq_along(var_names)) {
       mod_imp %<>%
-        mutate(!!var_names[i] := filter_match(matches[i])) %>%
+        mutate(!!var_names[i] := filter_match(mod_imp_raw, matches[i])) %>%
         select(-one_of("V1"))
     }
     
@@ -66,9 +66,9 @@ mods %<>%
       separate(baby_section, c("baby", "section"), sep=" ") %>%
       mutate(baby = tolower(baby), section = as.numeric(section)) %>%
       mutate_at(vars(phon_corr:phon_inc_or_cum_freq), 
-                funs(str_replace_all(., "^[0-9]* |^[A-Za-z]* [0-9]* [A-Za-z-]* [0-9]* ", "") %>%
+                funs(str_replace_all(., "^[0-9]* |^0|^[A-Za-z]* [0-9]* [A-Za-z-]* [0-9]* |^[A-Za-z]* [0-9]* [A-Za-z-]* [0-9]*$|^[A-Za-z]* [0-9]* [A-Za-z-]*$", "") %>%
                        str_split(" ") %>%
-                       rapply(function(x) ifelse(x=="",NA,x), how = "replace"))) %>%
+                       rapply(function(x) ifelse(x %in% c("", "NA"),NA,x), how = "replace"))) %>%
       mutate_at(vars(phon_inc_cum_freq, phon_inc_or_cum_freq),
                 funs(lapply(., as.numeric)))
     
@@ -99,3 +99,34 @@ mods_summary <- filenames %>%
            prop_phon_inc)
   }) %>%
   do.call(what = rbind)
+
+#### pn & pp for original inc words ####
+# import iphod for mot-chi-mod and old models
+online_imp <- read_tsv("online_imp.txt") %>%
+  arrange(phon)
+
+# function to check if all the words are in online (iphod)
+iphod_check <- function(var, save = F) {
+  words_imp <- mods %>%
+    lapply(function(x) {
+      x %>%
+        select(var) %>% # as a string
+        unlist()
+    }) %>%
+    unlist() %>%
+    na.omit() %>%
+    unique()
+  
+  words_missing <- sort(words_imp[!words_imp %in% online_imp$phon])
+  
+  if (save == F) {
+    words_missing
+  } else {
+    write.table(words_missing,
+                "words_imp_missing.txt",
+                sep = "\t",
+                quote = F,
+                row.names = F,
+                col.names = F)
+  }
+} # unused
