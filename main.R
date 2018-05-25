@@ -171,6 +171,13 @@ plurals <- "plurals.txt" %>%
   read_tsv(col_names = F) %>%
   unlist()
 
+# import online and create quartiles
+online_qu <- "online_qu.txt" %>%
+  read_tsv()
+
+qu_pn <- quantile(online_qu$nei)[c(2,3,4)]
+qu_pp <- quantile(online_qu$phon_prob, na.rm = T)[c(2,3,4)]
+
 # select only phon_inc_or that is of interest
 mods_iph <- mods %>%
   lapply(function(x) {
@@ -195,5 +202,32 @@ mods_iph <- mods %>%
                  ifelse(length(na.omit(y)) > 0, 
                          inner_join(tibble(phon = y), online_imp, by = "phon") %>% 
                            select(phon_prob), NA)
-               }))
+               })) %>%
+      # cumulative percentage of words in each quartile
+      mutate(pn_qu1 = sapply(phon_inc_or_pn, function(x) {length(x[which(x < qu_pn[1])])}),
+             pn_qu2 = sapply(phon_inc_or_pn, function(x) {length(x[which(x >= qu_pn[1] & x < qu_pn[2])])}),
+             pn_qu3 = sapply(phon_inc_or_pn, function(x) {length(x[which(x >= qu_pn[2] & x < qu_pn[3])])}),
+             pn_qu4 = sapply(phon_inc_or_pn, function(x) {length(x[which(x >= qu_pn[3])])}),
+             pp_qu1 = sapply(phon_inc_or_pp, function(x) {sum(x<qu_pp[1], na.rm = T)}),
+             pp_qu2 = sapply(phon_inc_or_pp, function(x) {sum(x>=qu_pp[1] & x<qu_pp[2], na.rm = T)}),
+             pp_qu3 = sapply(phon_inc_or_pp, function(x) {sum(x>=qu_pp[2] & x<qu_pp[3], na.rm = T)}),
+             pp_qu4 = sapply(phon_inc_or_pp, function(x) {sum(x>=qu_pp[3], na.rm = T)})) %>%
+      group_by(baby) %>%
+      mutate(pn_qu1cum = c(cumsum(pn_qu1)),
+             pn_qu2cum = c(cumsum(pn_qu2)),
+             pn_qu3cum = c(cumsum(pn_qu3)),
+             pn_qu4cum = c(cumsum(pn_qu4)),
+             pp_qu1cum = c(cumsum(pp_qu1)),
+             pp_qu2cum = c(cumsum(pp_qu2)),
+             pp_qu3cum = c(cumsum(pp_qu3)),
+             pp_qu4cum = c(cumsum(pp_qu4))) %>%
+      group_by(baby, section) %>%
+      mutate(pn_qu1perc = round(c(pn_qu1cum/sum(pn_qu1cum+pn_qu2cum+pn_qu3cum+pn_qu4cum)*100),1),
+             pn_qu2perc = round(c(pn_qu2cum/sum(pn_qu1cum+pn_qu2cum+pn_qu3cum+pn_qu4cum)*100),1),
+             pn_qu3perc = round(c(pn_qu3cum/sum(pn_qu1cum+pn_qu2cum+pn_qu3cum+pn_qu4cum)*100),1),
+             pn_qu4perc = round(c(pn_qu4cum/sum(pn_qu1cum+pn_qu2cum+pn_qu3cum+pn_qu4cum)*100),1),
+             pp_qu1perc = round(c(pp_qu1cum/sum(pp_qu1cum+pp_qu2cum+pp_qu3cum+pp_qu4cum)*100),1),
+             pp_qu2perc = round(c(pp_qu2cum/sum(pp_qu1cum+pp_qu2cum+pp_qu3cum+pp_qu4cum)*100),1),
+             pp_qu3perc = round(c(pp_qu3cum/sum(pp_qu1cum+pp_qu2cum+pp_qu3cum+pp_qu4cum)*100),1),
+             pp_qu4perc = round(c(pp_qu4cum/sum(pp_qu1cum+pp_qu2cum+pp_qu3cum+pp_qu4cum)*100),1))
   })
