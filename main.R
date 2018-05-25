@@ -84,6 +84,15 @@ length_inlist <- function(x) {
     length()
 }
 
+# load mot_uni 
+load("mot_uni.RData")
+
+n_phon_mot <- mot_uni %>%
+  select(phon) %>%
+  unlist() %>%
+  na.omit() %>%
+  length()
+
 # calculate number of correct and incorrect words, and proportion of incorrect words
 mods_summary <- filenames %>%
   lapply(function(x) {
@@ -98,7 +107,33 @@ mods_summary <- filenames %>%
            phon_inc_tokens,
            prop_phon_inc)
   }) %>%
-  do.call(what = rbind)
+  do.call(what = rbind) %>%
+  mutate(`prop_phon_inc (mot)` = round(phon_inc_tokens/n_phon_mot, 2))
+
+# prop inc words (dividing by mot tot phonemes)
+mods_summary_stage <- mods %>%
+  sapply(function(x) {
+    x %>%
+      group_by(section) %>%
+      summarise(phon_inc_prop = phon_inc %>%
+                  unlist() %>%
+                  na.omit() %>%
+                  (function(x) {
+                    length(x)/n_phon_mot
+                  })) %>%
+      mutate(phon_inc_prop_cum = cumsum(phon_inc_prop) %>%
+               round(2)) %>%
+      select(phon_inc_prop_cum)
+  }) %>%
+  unlist() %>%
+  matrix(ncol = 20, byrow = T) %>%
+  as_tibble() %>%
+  (function(x) {
+    colnames(x) <- 1:20
+    x
+  }) %>%
+  mutate(models = filenames) %>%
+  select(models, `1`:`20`)
 
 #### pn & pp for original inc words ####
 # import iphod for mot-chi-mod and old models
@@ -149,13 +184,13 @@ mods_iph <- mods %>%
                    na.omit() # delete NAs to not lose order in pp and pn
                })) %>%
       # assign pp and pn variables
-      mutate(phon_inc_or_pp = phon_inc_or %>%
+      mutate(phon_inc_or_pn = phon_inc_or %>%
                sapply(function(y) {
                  ifelse(length(na.omit(y)) > 0, 
                         inner_join(tibble(phon = y), online_imp, by = "phon") %>% 
                           select(nei), NA)
                }),
-             phon_inc_or_pn = phon_inc_or %>%
+             phon_inc_or_pp = phon_inc_or %>%
                sapply(function(y) {
                  ifelse(length(na.omit(y)) > 0, 
                          inner_join(tibble(phon = y), online_imp, by = "phon") %>% 
