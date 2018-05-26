@@ -1,5 +1,5 @@
 # loading libraries
-lib <- c("magrittr", "tidyverse")
+lib <- c("magrittr", "tidyverse", "Publish", "ggplot2")
 lapply(lib, require, character.only = TRUE)
 rm(lib)
 
@@ -230,4 +230,43 @@ mods_iph <- mods %>%
              pp_qu2perc = round(c(pp_qu2cum/sum(pp_qu1cum+pp_qu2cum+pp_qu3cum+pp_qu4cum)*100),1),
              pp_qu3perc = round(c(pp_qu3cum/sum(pp_qu1cum+pp_qu2cum+pp_qu3cum+pp_qu4cum)*100),1),
              pp_qu4perc = round(c(pp_qu4cum/sum(pp_qu1cum+pp_qu2cum+pp_qu3cum+pp_qu4cum)*100),1))
+  })
+
+#### cumulative frequency by stage ####
+mods_freq <- mods %>%
+  lapply(function(x) {
+    x %>%
+      select(baby, section, phon_inc_cum_freq, phon_inc_or_cum_freq) %>%
+      mutate(inc_freq_avg = phon_inc_cum_freq %>%
+               sapply(function(y) {
+                 mean(y, na.rm = T)
+               }),
+             inc_or_freq_avg = phon_inc_or_cum_freq %>%
+               sapply(function(y) {
+                 mean(y, na.rm = T)
+               })) %>%
+      (function(df) {
+        df_mean <- df %>%
+          group_by(section) %>%
+          summarise(inc_freq_avg_stage = mean(inc_freq_avg, na.rm = T),
+                    inc_or_freq_avg_stage = mean(inc_or_freq_avg, na.rm = T)) %>%
+          gather(word_type, freq_avg_stage, c(inc_freq_avg_stage, inc_or_freq_avg_stage))
+        
+        df_lower <- df %>%
+          group_by(section) %>%
+          summarise(inc_freq_avg_stage = ci.mean(inc_freq_avg)$lower,
+                    inc_or_freq_avg_stage = ci.mean(inc_or_freq_avg)$lower) %>%
+          gather(word_type, CI_lower, c(inc_freq_avg_stage, inc_or_freq_avg_stage)) %>%
+          select(-section)
+        
+        df_upper <- df %>%
+          group_by(section) %>%
+          summarise(inc_freq_avg_stage = ci.mean(inc_freq_avg)$upper,
+                    inc_or_freq_avg_stage = ci.mean(inc_or_freq_avg)$upper) %>%
+          gather(word_type, CI_upper, c(inc_freq_avg_stage, inc_or_freq_avg_stage)) %>%
+          select(-section)
+        
+        cbind(df_mean, `CI95%_lower` = df_lower$CI_lower, `CI95%_upper` = df_upper$CI_upper) %>%
+          as_tibble()
+      })
   })
