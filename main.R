@@ -1,5 +1,5 @@
 # loading libraries
-lib <- c("magrittr", "tidyverse", "Publish", "ggplot2")
+lib <- c("magrittr", "tidyverse", "Publish")
 lapply(lib, require, character.only = TRUE)
 rm(lib)
 
@@ -65,8 +65,12 @@ mods %<>%
       separate(phon_corr, c("baby_section", "phon_corr"), sep = " vocab-learnt-this-stage ") %>%
       separate(baby_section, c("baby", "section"), sep=" ") %>%
       mutate(baby = tolower(baby), section = as.numeric(section)) %>%
-      mutate_at(vars(phon_corr:phon_inc_or_cum_freq), 
+      mutate_at(vars(phon_corr:phon_inc_cum, phon_inc_or_cum, phon_inc_or_cum_freq), 
                 funs(str_replace_all(., "^[0-9]* |^0|^[A-Za-z]* [0-9]* [A-Za-z-]* [0-9]* |^[A-Za-z]* [0-9]* [A-Za-z-]* [0-9]*$|^[A-Za-z]* [0-9]* [A-Za-z-]*$", "") %>%
+                       str_split(" ") %>%
+                       rapply(function(x) ifelse(x %in% c("", "NA"),NA,x), how = "replace"))) %>%
+      mutate_at(vars(phon_inc_cum_freq),
+                funs(str_replace_all(., "^[0-9]* |^0|^[A-Za-z]* [0-9]* [A-Za-z-]* |^[A-Za-z]* [0-9]* [A-Za-z-]*$", "") %>%
                        str_split(" ") %>%
                        rapply(function(x) ifelse(x %in% c("", "NA"),NA,x), how = "replace"))) %>%
       mutate_at(vars(phon_inc_cum_freq, phon_inc_or_cum_freq),
@@ -233,6 +237,39 @@ mods_iph <- mods %>%
   })
 
 #### cumulative frequency by stage ####
+CI_df <- function(df, group_var, var_names, 
+                  var1, var2, var3, var4, var5) {
+  group_var <- enquo(group_var)
+  var1 <- enquo(var1)
+  var2 <- enquo(var2)
+  var3 <- enquo(var3)
+  var4 <- enquo(var4)
+  var5 <- enquo(var5)
+  
+  df_mean <- df %>%
+    group_by(!!group_var) %>%
+    summarise(!!var_names[1] := mean(!!var1, na.rm = T),
+              !!var_names[2] := mean(!!var2, na.rm = T)) %>%
+    gather(word_type, !!var3, c(!!var4, !!var5))
+  
+  df_lower <- df %>%
+    group_by(!!group_var) %>%
+    summarise(!!var_names[1] := ci.mean(!!var1)$lower,
+              !!var_names[2] := ci.mean(!!var2)$lower) %>%
+    gather(word_type, CI_lower, c(!!var4, !!var5)) %>%
+    select(-!!group_var)
+  
+  df_upper <- df %>%
+    group_by(!!group_var) %>%
+    summarise(!!var_names[1] := ci.mean(!!var1)$upper,
+              !!var_names[2] := ci.mean(!!var2)$upper) %>%
+    gather(word_type, CI_upper, c(!!var4, !!var5)) %>%
+    select(-!!group_var)
+  
+  cbind(df_mean, `CI95%_lower` = df_lower$CI_lower, `CI95%_upper` = df_upper$CI_upper) %>%
+    as_tibble()
+}
+
 mods_freq <- mods %>%
   lapply(function(x) {
     x %>%
@@ -245,28 +282,23 @@ mods_freq <- mods %>%
                sapply(function(y) {
                  mean(y, na.rm = T)
                })) %>%
-      (function(df) {
-        df_mean <- df %>%
-          group_by(section) %>%
-          summarise(inc_freq_avg_stage = mean(inc_freq_avg, na.rm = T),
-                    inc_or_freq_avg_stage = mean(inc_or_freq_avg, na.rm = T)) %>%
-          gather(word_type, freq_avg_stage, c(inc_freq_avg_stage, inc_or_freq_avg_stage))
-        
-        df_lower <- df %>%
-          group_by(section) %>%
-          summarise(inc_freq_avg_stage = ci.mean(inc_freq_avg)$lower,
-                    inc_or_freq_avg_stage = ci.mean(inc_or_freq_avg)$lower) %>%
-          gather(word_type, CI_lower, c(inc_freq_avg_stage, inc_or_freq_avg_stage)) %>%
-          select(-section)
-        
-        df_upper <- df %>%
-          group_by(section) %>%
-          summarise(inc_freq_avg_stage = ci.mean(inc_freq_avg)$upper,
-                    inc_or_freq_avg_stage = ci.mean(inc_or_freq_avg)$upper) %>%
-          gather(word_type, CI_upper, c(inc_freq_avg_stage, inc_or_freq_avg_stage)) %>%
-          select(-section)
-        
-        cbind(df_mean, `CI95%_lower` = df_lower$CI_lower, `CI95%_upper` = df_upper$CI_upper) %>%
-          as_tibble()
-      })
+      CI_df(section,
+            c("inc_freq_avg_stage","inc_or_freq_avg_stage"),
+            inc_freq_avg, inc_or_freq_avg, freq_avg_stage,
+            inc_freq_avg_stage, inc_or_freq_avg_stage)
+  })
+
+#### incorrect word replacement ####
+mods_freq_repl <- mods %>%
+  lapply(function(x) {
+    x %>%
+      select(baby, section, phon_inc_cum_freq, phon_inc_or_cum_freq) %>%
+      rowwise() %>%
+      mutate(inc_higher = sum((phon_inc_cum_freq - phon_inc_or_cum_freq) > 0),
+             inc_or_higher = sum((phon_inc_cum_freq - phon_inc_or_cum_freq) < 0)) %>%
+      ungroup() %>%
+      CI_df(section, 
+            c("inc_higher_avg_stage", "inc_or_higher_avg_stage"), 
+            inc_higher, inc_or_higher, higher_avg_stage, 
+            inc_higher_avg_stage, inc_or_higher_avg_stage)
   })
