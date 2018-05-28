@@ -27,7 +27,11 @@ knitr::opts_chunk$set(
 
 <!-- additional funs -->
 ```{r echo = FALSE}
-grid_arrange_shared_legend <- function(..., nrow = 1,y_title, x_size, y_size,widths1 = 2, widths2=0.2,hjust1=1, x_title, ncol = length(list(...)), position = c("bottom", "right")) {
+grid_arrange_shared_legend <- function(..., nrow = 1, y_title, x_size, y_size, 
+                                       widths1 = 2, widths2=0.2, 
+                                       hjust1=1, x_title, 
+                                       ncol = length(list(...)), 
+                                       position = c("bottom", "right")) {
 
   plots <- list(...)
   position <- match.arg(position)
@@ -54,6 +58,15 @@ grid_arrange_shared_legend <- function(..., nrow = 1,y_title, x_size, y_size,wid
 
 }
 ```
+
+<br>
+
+## Index
+
+- Summary vocabulary;
+- Phonotactic Probability (PP) and Phonological Neighbourhood Density (PN). Original words for incorrect vocabulary;
+- cumulative frequency of incorrect vocabulary and original vocabulary for incorrect words;
+- incorrect replacement.
 
 <br>
 
@@ -104,6 +117,10 @@ qu_pp %>%
 ```
 
 <br>
+
+#### Table
+
+PN quartiles
 
 ```{r echo=FALSE}
 qu_pn %>%
@@ -216,6 +233,144 @@ for (i in names_cat) {
     (function(x) {x[!x %in% names_cat0]})
   
   p_plot4(names_cat)
+} ; rm(i)
+```
+
+<br>
+
+## Cumulative frequency of incorrect vocabulary and original vocabulary for incorrect words
+
+For each participant, cumulative frequency mean was calculated for each stage. The following plots show the average cumulative frequency by stage across participants. The grey bands identify the 95% confidence interval around the mean.
+
+```{r echo=FALSE, fig.width=16, fig.height=9, message=FALSE, warning=FALSE}
+# freq plot function
+freq_plot <- function(df, title) {
+  mod <- df %>%
+  mutate(word_type = word_type %>%
+           factor(levels = c("inc_or_freq_avg_stage", "inc_freq_avg_stage"),
+                  labels = c("Original words", "Incorrect words"))) 
+
+ggplot(mod, aes(x=section, y=freq_avg_stage, shape = word_type)) +
+  geom_ribbon(aes(ymin = `CI95%_lower`, ymax = `CI95%_upper`), 
+            alpha = 0.5) +
+  labs(x = " ", y = " ") +
+  ggtitle(title) +
+  theme(plot.title = element_text(hjust = 0.5, size = 12.5)) +
+  geom_point(size=6) +
+  geom_line() +
+  scale_fill_manual("Word type",values=c("grey60","grey60")) +
+  scale_shape_manual("Word type", values = c(2,8)) +
+  theme(legend.title=element_text(size=19), 
+        legend.text=element_text(size=19),
+        legend.key.size = unit(1, "cm"))
+}
+
+# list of frequency plots
+p_freq_list <- filenames %>%
+  lapply(function(x) {
+    freq_plot(mods_freq[[x]], x)
+  }) %>%
+  (function(x) {
+    names(x) <- filenames
+    x
+  })
+
+names_cat0 <- filenames[grepl("error-0$",filenames)]
+names_cat <- filenames %>%
+  (function(x) {
+    gsub("-error-[0-9]{2}{1}[.][0-9]{1}|-error-0$", "", x) %>%
+      unique()
+  })
+
+# print all plots
+p_freq_plot4 <- function(names_cat) {
+  grid_arrange_shared_legend(p_freq_list[[names_cat[1]]],p_freq_list[[names_cat[2]]],
+                             p_freq_list[[names_cat[3]]],p_freq_list[[names_cat[4]]],
+                             position = "right", x_title = "Stage", 
+                             y_title = "Cumulative frequency (mean)",
+                             x_size = 25, y_size = 25, widths1 = 2, widths2 = 0.5, hjust1 = 1)
+}
+
+p_freq_plot4(names_cat0)
+```
+
+```{r echo=FALSE, fig.width=16, fig.height=9, message=FALSE, warning=FALSE}
+for (i in names_cat) {
+  names_cat <- filenames[grepl(i, filenames)] %>%
+    (function(x) {x[!x %in% names_cat0]})
+  
+  p_freq_plot4(names_cat)
 }
 ```
 
+<br>
+
+## Incorrect word replacement
+
+In the graphs below, the following measures are displayed: 
+
+- the number of incorrect words that have a higher frequency than the original one;
+- the number of original words that have a higher frequency than the incorrect one.
+
+<br>
+
+```{r echo=FALSE, fig.width=16, fig.height=9, message=FALSE, warning=FALSE}
+# freq plot function
+freq_repl_plot <- function(df, title) {
+  mod <- df %>%
+  mutate(word_type = word_type %>%
+           factor(levels = c("inc_or_higher_avg_stage", "inc_higher_avg_stage"),
+                  labels = c("original > incorrect", "incorrect > original"))) 
+
+ggplot(mod, aes(x=section, y=higher_avg_stage, shape = word_type)) +
+  geom_ribbon(aes(ymin = `CI95%_lower`, ymax = `CI95%_upper`), 
+            alpha = 0.5) +
+  labs(x = " ", y = " ") +
+  ggtitle(title) +
+  theme(plot.title = element_text(hjust = 0.5, size = 12.5)) +
+  geom_point(size=6) +
+  geom_line() +
+  scale_fill_manual("Word type",values=c("grey60","grey60")) +
+  scale_shape_manual("Word type", values = c(2,8)) +
+  theme(legend.title=element_text(size=19), 
+        legend.text=element_text(size=19),
+        legend.key.size = unit(1, "cm"))
+}
+
+# list of frequency plots
+p_freq_repl_list <- filenames %>%
+  lapply(function(x) {
+    freq_repl_plot(mods_freq_repl[[x]], x)
+  }) %>%
+  (function(x) {
+    names(x) <- filenames
+    x
+  })
+
+names_cat0 <- filenames[grepl("error-0$",filenames)]
+names_cat <- filenames %>%
+  (function(x) {
+    gsub("-error-[0-9]{2}{1}[.][0-9]{1}|-error-0$", "", x) %>%
+      unique()
+  })
+
+# print all plots
+p_freq_repl_plot4 <- function(names_cat) {
+  grid_arrange_shared_legend(p_freq_repl_list[[names_cat[1]]],p_freq_repl_list[[names_cat[2]]],
+                             p_freq_repl_list[[names_cat[3]]],p_freq_repl_list[[names_cat[4]]],
+                             position = "right", x_title = "Stage", 
+                             y_title = "Words with a higher frequency (mean)",
+                             x_size = 25, y_size = 25, widths1 = 2, widths2 = 0.5, hjust1 = 1)
+}
+
+p_freq_repl_plot4(names_cat0)
+```
+
+```{r echo=FALSE, fig.width=16, fig.height=9, message=FALSE, warning=FALSE}
+for (i in names_cat) {
+  names_cat <- filenames[grepl(i, filenames)] %>%
+    (function(x) {x[!x %in% names_cat0]})
+  
+  p_freq_repl_plot4(names_cat)
+}
+```
