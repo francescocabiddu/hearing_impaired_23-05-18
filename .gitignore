@@ -51,3 +51,9 @@ online_imp.txt
 online_qu.txt
 
 plurals.txt
+
+images/
+
+*.docx
+
+*.DS_store
