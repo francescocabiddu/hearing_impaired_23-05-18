@@ -86,3 +86,136 @@ mods_summary_stage %>%
   kable()
 ```
 
+<br>
+
+## Phonotactic Probability (PP) and Phonological Neighbourhood Density (PN) (original words for incorrect vocabulary)
+
+<br>
+
+#### Table
+
+PP quartiles
+
+```{r echo=FALSE}
+qu_pp %>%
+  t() %>%
+  as_tibble() %>%
+  kable()
+```
+
+<br>
+
+```{r echo=FALSE}
+qu_pn %>%
+  t() %>%
+  as_tibble() %>%
+  kable()
+```
+
+<br>
+
+```{r echo=FALSE, fig.width=16, fig.height=9, message=FALSE, warning=FALSE}
+# create a function to plot pn or pp for a single df
+p_plot <- function(df, title, p_type) {
+  if (p_type == "pp") {
+    ggplot(df, aes(x=section, y=pp_qu1perc, fill=baby, shape="Q1")) + 
+      geom_point(size=4, alpha=0.2) +
+      scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+      labs(x = " ", y = " ") +
+      ggtitle(title) +
+      theme(plot.title = element_text(hjust = 0.5, size = 12.5)) +
+      geom_point(aes(x=section, y=pp_qu2perc, fill=baby, shape="Q2"),size=4, alpha=0.2) + 
+      geom_point(aes(x=section, y=pp_qu3perc, fill=baby, shape="Q3"), size=4,alpha=0.2) + 
+      geom_point(aes(x=section, y=pp_qu4perc, fill=baby, shape="Q4"), size=4,alpha=0.2) + 
+      scale_shape_manual("IPhOD Quartile", values=c(`Q1`= 0, `Q2`= 3, `Q3` = 2, `Q4`=1),
+                         breaks=c("Q1","Q2", "Q3","Q4"))+
+      scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 20))+
+      guides(fill=FALSE)+
+      geom_smooth(aes(x=section, y=pp_qu1perc,linetype="Q1"), 
+                  fill=NA, colour="black", method="lm", size=0.8)+
+      geom_smooth(aes(x=section, y=pp_qu2perc,linetype="Q2"), 
+                  fill=NA, colour="black", method="lm", size=0.8)+
+      geom_smooth(aes(x=section, y=pp_qu3perc,linetype="Q3"), 
+                  fill=NA, colour="black", method="lm", size=0.8)+
+      geom_smooth(aes(x=section, y=pp_qu4perc,linetype="Q4"), 
+                  fill=NA, colour="black", method="lm", size=0.8)+
+      theme(axis.text=element_text(size=18), legend.text = element_text(size = 20), 
+            legend.title = element_text(size = 20), legend.key.size = unit(1, "cm")) +
+      scale_colour_grey(start = 0, end = .9)+
+      scale_linetype_manual("IPhOD Quartile", values=c(`Q4` = "dotdash", `Q1` = "longdash",
+                                                       `Q2` = "solid", `Q3`= "dotted"), 
+                            breaks=c("Q1","Q2", "Q3","Q4"))
+  } else if (p_type == "pn") {
+    ggplot(df, aes(x=section, y=pn_qu1perc, fill=baby, shape="Q1")) + 
+      geom_point(size=4, alpha=0.2) +
+      scale_x_continuous(breaks=c(1, seq(5,20, 5))) +
+      labs(x = " ", y = " ") +
+      ggtitle(title) +
+      theme(plot.title = element_text(hjust = 0.5, size = 12.5)) +
+      geom_point(aes(x=section, y=pn_qu2perc, fill=baby, shape="Q2"), size=4,alpha=0.2) + 
+      geom_point(aes(x=section, y=pn_qu3perc, fill=baby, shape="Q3"), size=4,alpha=0.2) + 
+      geom_point(aes(x=section, y=pn_qu4perc, fill=baby, shape="Q4"), size=4,alpha=0.2) + 
+      scale_shape_manual("IPhOD Quartile", values=c(`Q1`= 0, `Q2`= 3, `Q3` = 2, `Q4`=1),
+                         breaks=c("Q4", "Q3","Q2","Q1"))+
+      scale_y_continuous(limits=c(0, 100), breaks=seq(0, 100, by = 20))+
+      guides(fill=FALSE)+
+      geom_smooth(aes(x=section, y=pn_qu1perc,linetype="Q1"), 
+                  fill=NA, colour="black", method="lm", size=0.8)+
+      geom_smooth(aes(x=section, y=pn_qu2perc,linetype="Q2"), 
+                  fill=NA, colour="black", method="lm", size=0.8)+
+      geom_smooth(aes(x=section, y=pn_qu3perc,linetype="Q3"), 
+                  fill=NA, colour="black", method="lm", size=0.8)+
+      geom_smooth(aes(x=section, y=pn_qu4perc,linetype="Q4"), 
+                  fill=NA, colour="black", method="lm", size=0.8)+
+      theme(axis.text=element_text(size=18),         
+            legend.text = element_text(size = 20),         
+            legend.title = element_text(size = 20),         
+            legend.key.size = unit(1, "cm"))+     
+      scale_colour_grey(start = 0, end = .9)+
+      scale_linetype_manual("IPhOD Quartile", values=c(`Q4` = "dotdash", `Q1` = "longdash",
+                                                       `Q2` = "solid", `Q3`= "dotted"), 
+                            breaks=c("Q4","Q3","Q2","Q1"))
+  }
+}
+
+# create a list of plots
+p_list <- lapply(filenames, function(x) {
+  plot_pp <- p_plot(mods_iph[[x]], paste("PP", x, ""), "pp")
+  plot_pn <- p_plot(mods_iph[[x]], paste("PN", x, ""), "pn")
+  list(plot_pp = plot_pp, plot_pn = plot_pn)
+}) %>%
+  (function(x) {
+    names(x) <- filenames
+    x
+  })
+
+# function to plot 4 graphs at a time
+names_cat0 <- filenames[grepl("error-0$",filenames)]
+names_cat <- filenames %>%
+  (function(x) {
+    gsub("-error-[0-9]{2}{1}[.][0-9]{1}|-error-0$", "", x) %>%
+      unique()
+  })
+
+# print all plots
+p_plot4 <- function(names_cat) {
+  grid_arrange_shared_legend(p_list[[names_cat[1]]][[1]],p_list[[names_cat[2]]][[1]],
+                             p_list[[names_cat[3]]][[1]],p_list[[names_cat[4]]][[1]],
+                             position = "right", x_title = "Stage", y_title = "Novel words (%)",
+                             x_size = 25, y_size = 25, widths1 = 2, widths2 = 0.5, hjust1 = 1)
+}
+  
+p_plot4(names_cat0)
+```
+
+<br>
+
+```{r echo=FALSE, fig.width=16, fig.height=9, message=FALSE, warning=FALSE}
+for (i in names_cat) {
+  names_cat <- filenames[grepl(i, filenames)] %>%
+    (function(x) {x[!x %in% names_cat0]})
+  
+  p_plot4(names_cat)
+}
+```
+
