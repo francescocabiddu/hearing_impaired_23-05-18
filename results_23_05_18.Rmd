@@ -1,0 +1,88 @@
+---
+title: "Hearing impairment study - Results"
+output:
+  word_document:
+    reference_docx: template.docx
+  pdf_document: default
+
+---
+
+Date: `r Sys.Date()`
+
+```{r include=FALSE}
+# load libraries
+lib <- c("magrittr", "tidyverse", "ggplot2",
+         "knitr", "grid", "gridExtra")
+lapply(lib, require, character.only = TRUE)
+rm(lib)
+
+# load ws
+load("ws_27_05_18.RData")
+
+# set plot folder
+knitr::opts_chunk$set(
+  fig.path = "images/"
+)
+```
+
+<!-- additional funs -->
+```{r echo = FALSE}
+grid_arrange_shared_legend <- function(..., nrow = 1,y_title, x_size, y_size,widths1 = 2, widths2=0.2,hjust1=1, x_title, ncol = length(list(...)), position = c("bottom", "right")) {
+
+  plots <- list(...)
+  position <- match.arg(position)
+  g <- ggplotGrob(plots[[1]] + theme(legend.position = position))$grobs
+  legend <- g[[which(sapply(g, function(x) x$name) == "guide-box")]]
+  lheight <- sum(legend$height)
+  lwidth <- sum(legend$width)
+  gl <- lapply(plots, function(x) x + theme(legend.position = "none"))
+  gl <- c(gl, nrow = nrow, ncol = ncol)
+
+  combined <- switch(position,
+                     "bottom" = arrangeGrob(do.call(arrangeGrob, gl),
+                                            legend,
+                                            ncol = 1,
+                                            heights = unit.c(unit(1, "npc") - lheight, lheight)),
+                     "right" = arrangeGrob(do.call(arrangeGrob, gl),
+                                           legend,
+                                           ncol = 2,
+                                           widths = c(widths1, widths2),
+                                           left=textGrob(y_title, gp=gpar(fontsize=y_size), rot = 90),
+                                           bottom=textGrob(x_title, gp=gpar(fontsize=x_size), vjust = 0, hjust = hjust1)))
+  grid.newpage()
+  grid.draw(combined)
+
+}
+```
+
+<br>
+
+## Summary vocabulary
+
+<br>
+
+#### Table
+
+Number of correct and incorrect words. Proportion of incorrect words learned by each model (phonetic transcription considered), based on "total number of words produced by the model" or "total number of words produced by the mother" (*N* = `r n_phon_mot`).
+
+```{r echo=FALSE}
+mods_summary %>%
+  rename(Models = mod, `Correct tokens` = phon_corr_tokens,
+         `Incorrect tokens`= phon_inc_tokens, 
+         `Proportion incorrect tokens` = prop_phon_inc,
+         `Proportion incorrect tokens (Mot)` = `prop_phon_inc (mot)`) %>%
+  kable()
+```
+
+<br>
+
+#### Table
+
+Cumulative proportion of incorrect words learned by each model by stage, based on "total number of words produced by the mother" (*N* = `r n_phon_mot`).
+
+```{r echo=FALSE}
+mods_summary_stage %>%
+  rename(Models = models) %>%
+  kable()
+```
+
