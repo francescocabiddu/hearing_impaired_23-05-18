@@ -66,7 +66,7 @@ grid_arrange_shared_legend <- function(..., nrow = 1, y_title, x_size, y_size,
 - Summary vocabulary;
 - Phonotactic Probability (PP) and Phonological Neighbourhood Density (PN). Original words for incorrect vocabulary;
 - cumulative frequency of incorrect vocabulary and original vocabulary for incorrect words;
-- incorrect replacement.
+- incorrect word replacement.
 
 <br>
 
@@ -130,6 +130,8 @@ qu_pn %>%
 ```
 
 <br>
+
+### Phonotactic Probability
 
 ```{r echo=FALSE, fig.width=16, fig.height=9, message=FALSE, warning=FALSE}
 # create a function to plot pn or pp for a single df
@@ -215,14 +217,20 @@ names_cat <- filenames %>%
   })
 
 # print all plots
-p_plot4 <- function(names_cat) {
-  grid_arrange_shared_legend(p_list[[names_cat[1]]][[1]],p_list[[names_cat[2]]][[1]],
-                             p_list[[names_cat[3]]][[1]],p_list[[names_cat[4]]][[1]],
+p_plot4 <- function(names_cat, p_type) {
+  if (p_type == "pp") {
+    n_plot <- 1
+  } else if (p_type == "pn") {
+    n_plot <- 2
+  }
+  
+  grid_arrange_shared_legend(p_list[[names_cat[1]]][[n_plot]],p_list[[names_cat[2]]][[n_plot]],
+                             p_list[[names_cat[3]]][[n_plot]],p_list[[names_cat[4]]][[n_plot]],
                              position = "right", x_title = "Stage", y_title = "Novel words (%)",
                              x_size = 25, y_size = 25, widths1 = 2, widths2 = 0.5, hjust1 = 1)
 }
   
-p_plot4(names_cat0)
+p_plot4(names_cat0, "pp")
 ```
 
 <br>
@@ -232,7 +240,29 @@ for (i in names_cat) {
   names_cat <- filenames[grepl(i, filenames)] %>%
     (function(x) {x[!x %in% names_cat0]})
   
-  p_plot4(names_cat)
+  p_plot4(names_cat, "pp")
+} ; rm(i)
+```
+
+<br>
+
+### Phonological Neighbourhood Density
+
+```{r echo=FALSE, fig.width=16, fig.height=9, message=FALSE, warning=FALSE}
+names_cat0 <- filenames[grepl("error-0$",filenames)]
+names_cat <- filenames %>%
+  (function(x) {
+    gsub("-error-[0-9]{2}{1}[.][0-9]{1}|-error-0$", "", x) %>%
+      unique()
+  })
+
+p_plot4(names_cat0, "pn")
+
+for (i in names_cat) {
+  names_cat <- filenames[grepl(i, filenames)] %>%
+    (function(x) {x[!x %in% names_cat0]})
+  
+  p_plot4(names_cat, "pn")
 } ; rm(i)
 ```
 
@@ -320,7 +350,7 @@ freq_repl_plot <- function(df, title) {
   mod <- df %>%
   mutate(word_type = word_type %>%
            factor(levels = c("inc_or_higher_avg_stage", "inc_higher_avg_stage"),
-                  labels = c("original > incorrect", "incorrect > original"))) 
+                  labels = c("Original > incorrect", "Incorrect > original"))) 
 
 ggplot(mod, aes(x=section, y=higher_avg_stage, shape = word_type)) +
   geom_ribbon(aes(ymin = `CI95%_lower`, ymax = `CI95%_upper`), 
